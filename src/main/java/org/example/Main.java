@@ -3,23 +3,29 @@ package org.example;
 import java.util.*;
 
 public class Main {
+    // TestValues
+    static int COLS = 7;
+    static int ROWS = 6;
+    static int WIN_CONDITION = 4;  // default for ConnectFour
+
+    static int SQUARE = COLS * ROWS;
+
+    static Character[][] field = new Character[ROWS][COLS];
+    static HashMap<Integer, Integer> idxToMax = new HashMap<>();
+
     static void main() {
-        // TestValues
-        int COLS = 7;
-        int ROWS = 6;
-        int WIN_CONDITION = 4;  // default for ConnectFour
-
-        int SQUARE = COLS * ROWS;
-
-        Character[][] field = new Character[ROWS][COLS];
-        HashMap<Integer, Integer> idxToMax = new HashMap<>();
+        assert WIN_CONDITION <= ROWS &&
+                WIN_CONDITION >= 4 &&
+                WIN_CONDITION <= 10 &&
+                COLS >= 7 &&
+                ROWS >= 6;
 
         for (int k = 0; k < COLS; k ++) {
             idxToMax.put(k, ROWS - 1);
         }
 
         Scanner scanner = new Scanner(System.in);
-        int turnCounter = 0; // increment after each step
+        int turnCounter = 0;  // increment after each step
 
         printField(field);
 
@@ -57,6 +63,32 @@ public class Main {
             turnCounter++;
 
             printField(field);
+        }
+
+
+    }
+
+    static Character checkWinCondition(int colIdx) {
+        int rowIdx = idxToMax.get(colIdx);
+        Character winningChar;
+        int count = 0;
+        // down
+        if (rowIdx < ROWS - WIN_CONDITION) {
+            int curRowIdx = rowIdx;
+            while (curRowIdx < ROWS - 1) {
+                if (field[curRowIdx][colIdx] == field[curRowIdx + 1][colIdx]) {
+                    winningChar = field[curRowIdx][colIdx];
+                    count++;
+                    if (count >= WIN_CONDITION) {
+                        return winningChar;
+                    }
+                } else {
+                    winningChar = null;
+                    count = 0;
+                }
+                curRowIdx--;
+            }
+            count = 0;
         }
 
 
