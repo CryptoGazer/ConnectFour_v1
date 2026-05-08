@@ -1,111 +1,152 @@
 package org.example;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Scanner;
 
 public class Main {
-    // TestValues
-    static int COLS = 7;
-    static int ROWS = 6;
-    static int WIN_CONDITION = 4;  // default for ConnectFour
+    static final int COLS = 7;
+    static final int ROWS = 6;
+    static final int WIN_CONDITION = 4;
 
-    static int SQUARE = COLS * ROWS;
+    static final int SQUARE = COLS * ROWS;
 
     static Character[][] field = new Character[ROWS][COLS];
-    static HashMap<Integer, Integer> idxToMax = new HashMap<>();
 
-    static void main() {
-        assert WIN_CONDITION <= ROWS &&
-                WIN_CONDITION >= 4 &&
-                WIN_CONDITION <= 10 &&
-                COLS >= 7 &&
-                ROWS >= 6;
+    // nextFreeRow[col] is the row index where the next piece in this column will fall
+    static int[] nextFreeRow = new int[COLS];
 
-        for (int k = 0; k < COLS; k ++) {
-            idxToMax.put(k, ROWS - 1);
-        }
+    public static void main(String[] args) {
+        validateConfig();
+
+        Arrays.fill(nextFreeRow, ROWS - 1);
 
         Scanner scanner = new Scanner(System.in);
-        int turnCounter = 0;  // increment after each step
+        int turnCounter = 0;
 
         printField(field);
 
-        // replace true
         while (true) {
             if (turnCounter == SQUARE) {
-                System.out.println("\n===DRAW===\n");
+                System.out.println("\n=== DRAW ===\n");
                 break;
             }
 
-            System.out.println("Enter col idx: ");
+            char currentPiece = turnCounter % 2 == 0 ? 'X' : 'O';
+
+            System.out.println("Player " + currentPiece + ", enter column index from 0 to " + (COLS - 1) + ": ");
+
+            if (!scanner.hasNextInt()) {
+                System.out.println("\n=== PLEASE ENTER A NUMBER ===\n");
+                scanner.next();
+                continue;
+            }
+
             int colIdx = scanner.nextInt();
-            int rowIdx = idxToMax.get(colIdx);
 
             if (colIdx < 0 || colIdx >= COLS) {
-                System.out.println("\n===WRONG INDEX " + colIdx + " ===\n");
+                System.out.println("\n=== WRONG COLUMN INDEX " + colIdx + " ===\n");
                 continue;
             }
+
+            int rowIdx = nextFreeRow[colIdx];
 
             if (rowIdx == -1) {
-                System.out.println("\n===INDEX " + colIdx + " IS FULL===\n");
+                System.out.println("\n=== COLUMN " + colIdx + " IS FULL ===\n");
                 continue;
-            }
-
-            char currentPiece;
-            if (turnCounter % 2 == 0) {
-                currentPiece = 'X';
-            } else {
-                currentPiece = 'O';
             }
 
             field[rowIdx][colIdx] = currentPiece;
-
-            idxToMax.merge(colIdx, -1, Integer::sum);
+            nextFreeRow[colIdx]--;
             turnCounter++;
 
             printField(field);
+
+            if (isWinningMove(rowIdx, colIdx, currentPiece)) {
+                System.out.println("\n=== PLAYER " + currentPiece + " WON ===\n");
+                break;
+            }
         }
-
-
     }
 
-    static Character checkWinCondition(int colIdx) {
-        int rowIdx = idxToMax.get(colIdx);
-        Character winningChar;
-        int count = 0;
-        // down
-        if (rowIdx < ROWS - WIN_CONDITION) {
-            int curRowIdx = rowIdx;
-            while (curRowIdx < ROWS - 1) {
-                if (field[curRowIdx][colIdx] == field[curRowIdx + 1][colIdx]) {
-                    winningChar = field[curRowIdx][colIdx];
-                    count++;
-                    if (count >= WIN_CONDITION) {
-                        return winningChar;
-                    }
-                } else {
-                    winningChar = null;
-                    count = 0;
-                }
-                curRowIdx--;
-            }
-            count = 0;
+    static void validateConfig() {
+        if (COLS <= 0 || ROWS <= 0) {
+            throw new IllegalArgumentException("Rows and columns must be positive");
         }
 
+        if (COLS > 10 || ROWS > 10) {
+            throw new IllegalArgumentException("Maximum field size is 10 x 10");
+        }
 
+        if (WIN_CONDITION < 4) {
+            throw new IllegalArgumentException("Win condition must be at least 4");
+        }
+
+        if (WIN_CONDITION > 10) {
+            throw new IllegalArgumentException("Win condition must be at most 10");
+        }
+
+        if (WIN_CONDITION > Math.max(ROWS, COLS)) {
+            throw new IllegalArgumentException("Win condition is impossible for this field size");
+        }
+    }
+
+    static boolean isWinningMove(int rowIdx, int colIdx, char currentPiece) {
+        int[][] directions = {
+                {0, 1},   // horizontal
+                {1, 0},   // vertical
+                {1, 1},   // diagonal \
+                {1, -1}   // diagonal /
+        };
+
+        for (int[] direction : directions) {
+            int rowStep = direction[0];
+            int colStep = direction[1];
+
+            int count = 1;
+
+            count += countPieces(rowIdx, colIdx, rowStep, colStep, currentPiece);
+            count += countPieces(rowIdx, colIdx, -rowStep, -colStep, currentPiece);
+
+            if (count >= WIN_CONDITION) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    static int countPieces(int rowIdx, int colIdx, int rowStep, int colStep, char currentPiece) {
+        int count = 0;
+
+        int currentRow = rowIdx + rowStep;
+        int currentCol = colIdx + colStep;
+
+        while (
+                currentRow >= 0 &&
+                        currentRow < ROWS &&
+                        currentCol >= 0 &&
+                        currentCol < COLS &&
+                        field[currentRow][currentCol] != null &&
+                        field[currentRow][currentCol] == currentPiece
+        ) {
+            count++;
+
+            currentRow += rowStep;
+            currentCol += colStep;
+        }
+
+        return count;
     }
 
     static void printField(Character[][] field) {
         for (Character[] row : field) {
             for (Character piece : row) {
-                Character pieceToPrint = piece;
-                if (pieceToPrint == null) {
-                    pieceToPrint = '_';
-                }
+                char pieceToPrint = piece == null ? '_' : piece;
                 System.out.print(pieceToPrint + " ");
             }
             System.out.println();
         }
-        System.out.println();
+
         System.out.println();
     }
 }
