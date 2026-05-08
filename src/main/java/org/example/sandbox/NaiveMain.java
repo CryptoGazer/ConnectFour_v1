@@ -1,9 +1,9 @@
-package org.example;
+package org.example.sandbox;
 
 import java.util.Arrays;
 import java.util.Scanner;
 
-public class Main {
+public class NaiveMain {
     static final int COLS = 7;
     static final int ROWS = 6;
     static final int WIN_CONDITION = 4;
