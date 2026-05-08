@@ -7,6 +7,10 @@ plugins {
 group = 'org.example'
 version = '1.0-SNAPSHOT'
 
+springBoot {
+    mainClass = 'org.example.ConnectFourApplication'
+}
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)

@@ -2,6 +2,7 @@ package connectfour.ui
 
 import androidx.compose.runtime.*
 import connectfour.api.EventSource
+import connectfour.api.fetchGame
 import connectfour.api.makeMove
 import connectfour.model.GameState
 import kotlinx.browser.window
@@ -18,25 +19,31 @@ fun GameScreen(gameId: String, onNewGame: () -> Unit) {
     var state by remember { mutableStateOf<GameState?>(null) }
     var gameNotFound by remember { mutableStateOf(false) }
 
+    // Fetch initial state immediately via REST — reliable and fast.
+    // SSE sends initial state too, but proxies can buffer it unpredictably.
+    LaunchedEffect(gameId) {
+        try {
+            state = fetchGame(gameId)
+        } catch (e: Throwable) {
+            gameNotFound = true
+        }
+    }
+
+    // SSE for real-time updates after each move
     DisposableEffect(gameId) {
-        var errorStreak = 0
         val es = EventSource("/api/games/$gameId/events")
 
         es.addEventListener("state") { event ->
-            errorStreak = 0
-            state = json.decodeFromString(event.data)
+            try {
+                val data = event.data.unsafeCast<String>()
+                state = json.decodeFromString(data)
+            } catch (e: Throwable) {
+                // ignore malformed events; last known state stays visible
+            }
         }
 
-        // If the game doesn't exist (server restarted), EventSource gets 404 and keeps retrying.
-        // After a few consecutive failures with no state received, we give up.
         es.onerror = { _ ->
-            if (state == null) {
-                errorStreak++
-                if (errorStreak >= 3) {
-                    es.close()
-                    gameNotFound = true
-                }
-            }
+            // SSE errors are non-fatal if we already have state from the REST call
         }
 
         onDispose { es.close() }
@@ -60,9 +67,8 @@ fun GameScreen(gameId: String, onNewGame: () -> Unit) {
 
         val gs = state
         if (gs == null) {
-            P { Text("Connecting…") }
+            P { Text("Loading…") }
         } else {
-            // Status bar
             val statusText = when (gs.status) {
                 "FINISHED" -> "Player ${gs.winner} wins!"
                 "DRAW"     -> "It's a draw!"
@@ -74,8 +80,7 @@ fun GameScreen(gameId: String, onNewGame: () -> Unit) {
                 if (gs.status == "RUNNING") {
                     MainScope().launch {
                         try {
-                            makeMove(gameId, col)
-                            // SSE broadcasts the new state — no manual update needed
+                            state = makeMove(gameId, col)
                         } catch (e: Throwable) {
                             window.alert(e.message ?: "Invalid move")
                         }
