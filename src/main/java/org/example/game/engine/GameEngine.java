@@ -46,12 +46,12 @@ public class GameEngine {
     }
 
     private void validateConfig(int rows, int columns, int winCondition) {
-        if (rows < 4 || columns < 4) {
-            throw new IllegalArgumentException("Rows and columns must be at least 4");
+        if (rows > 100 || columns > 100) {
+            throw new IllegalArgumentException("Field size is too large");
         }
 
-        if (rows > 10 || columns > 10) {
-            throw new IllegalArgumentException("Maximum field size is 10 x 10");
+        if (rows <= 0 || columns <= 0) {
+            throw new IllegalArgumentException("Rows and columns must be positive");
         }
 
         if (winCondition < 4) {
