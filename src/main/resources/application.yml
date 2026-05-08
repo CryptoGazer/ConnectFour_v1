@@ -1,0 +1,8 @@
+spring:
+  mvc:
+    async:
+      # -1 disables the MVC-level timeout so SseEmitter manages its own 30-minute window
+      request-timeout: -1
+
+server:
+  port: 8080

@@ -4,61 +4,55 @@ import org.example.game.domain.Game;
 import org.example.game.domain.Player;
 import org.example.game.dto.GameStateResponse;
 import org.example.game.engine.GameEngine;
+import org.example.game.repository.GameRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class GameService {
 
     private final GameEngine gameEngine;
-    private final Map<String, Game> games = new ConcurrentHashMap<>();
+    private final GameRepository gameRepository;
 
-    public GameService(GameEngine gameEngine) {
+    public GameService(GameEngine gameEngine, GameRepository gameRepository) {
         this.gameEngine = gameEngine;
+        this.gameRepository = gameRepository;
     }
 
     public GameStateResponse createGame(int rows, int columns, int winCondition) {
         try {
             String id = UUID.randomUUID().toString();
-
             Game game = gameEngine.createGame(id, rows, columns, winCondition);
-            games.put(id, game);
-
+            gameRepository.save(game);
             return toResponse(game);
-        } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
     }
 
     public GameStateResponse getGame(String gameId) {
-        Game game = findGame(gameId);
-        return toResponse(game);
+        return toResponse(findGame(gameId));
     }
 
     public GameStateResponse makeMove(String gameId, int column) {
         Game game = findGame(gameId);
-
-        try {
-            gameEngine.makeMove(game, column);
-            return toResponse(game);
-        } catch (IllegalArgumentException | IllegalStateException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage());
+        // synchronize per-game to prevent concurrent moves corrupting board/nextFreeRows
+        synchronized (game) {
+            try {
+                gameEngine.makeMove(game, column);
+                return toResponse(game);
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+            }
         }
     }
 
     private Game findGame(String gameId) {
-        Game game = games.get(gameId);
-
-        if (game == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Game not found");
-        }
-
-        return game;
+        return gameRepository.findById(gameId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Game not found"));
     }
 
     private GameStateResponse toResponse(Game game) {
@@ -77,15 +71,11 @@ public class GameService {
 
     private String[][] mapBoard(Player[][] board) {
         String[][] result = new String[board.length][board[0].length];
-
         for (int row = 0; row < board.length; row++) {
-            for (int column = 0; column < board[row].length; column++) {
-                result[row][column] = board[row][column] == null
-                        ? null
-                        : board[row][column].name();
+            for (int col = 0; col < board[row].length; col++) {
+                result[row][col] = board[row][col] == null ? null : board[row][col].name();
             }
         }
-
         return result;
     }
 }
