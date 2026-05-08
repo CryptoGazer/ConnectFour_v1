@@ -1,4 +1,7 @@
 package org.example.game.domain;
 
-public class GameStatus {
+public enum GameStatus {
+    RUNNING,
+    FINISHED,
+    DRAW
 }

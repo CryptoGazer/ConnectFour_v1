@@ -1,4 +1,9 @@
 package org.example.game.dto;
 
-public class CreateGameRequest {
+public record CreateGameRequest(
+        int rows,
+        int columns,
+        int winCondition
+) {
+
 }

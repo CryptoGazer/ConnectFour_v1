@@ -1,4 +1,10 @@
 package org.example.game.domain;
 
-public class Player {
+public enum Player {
+    X,
+    O;
+
+    public Player next() {
+        return this == X ? O : X;
+    }
 }
