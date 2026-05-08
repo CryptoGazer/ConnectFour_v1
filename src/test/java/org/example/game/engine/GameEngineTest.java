@@ -5,6 +5,8 @@ import org.example.game.domain.GameStatus;
 import org.example.game.domain.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -82,7 +84,7 @@ class GameEngineTest {
         assertNull(game.getWinner());
     }
 
-    // Game-state guards
+    // Game state guards
 
     @Test
     void moveRejectedAfterGameEnds() {
@@ -112,6 +114,40 @@ class GameEngineTest {
         for (int i = 0; i < 5; i++) engine.makeMove(game, 0);
 
         assertThrows(IllegalArgumentException.class, () -> engine.makeMove(game, 0));
+    }
+
+    // Win detection — Connect 4 through Connect 10
+
+    @ParameterizedTest
+    @ValueSource(ints = {4, 5, 6, 7, 8, 9, 10})
+    void horizontalWin_allConnectVariants(int n) {
+        // Board: (n+1) rows × (n+1) cols; col n is a spare column for O.
+        // X fills the bottom row cols 0..n-1; O parks in col n after each X move.
+        Game game = engine.createGame("h" + n, n + 1, n + 1, n);
+        for (int col = 0; col < n - 1; col++) {
+            engine.makeMove(game, col); // X → bottom row
+            engine.makeMove(game, n);   // O → spare column
+        }
+        engine.makeMove(game, n - 1);   // X completes n in a row
+
+        assertEquals(GameStatus.FINISHED, game.getStatus());
+        assertEquals(Player.X, game.getWinner());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {4, 5, 6, 7, 8, 9, 10})
+    void verticalWin_allConnectVariants(int n) {
+        // Board: n rows × 2 cols; X stacks col 0, O stacks col 1.
+        // After n X moves col 0 is full with X → vertical win.
+        Game game = engine.createGame("v" + n, n, 2, n);
+        for (int i = 0; i < n - 1; i++) {
+            engine.makeMove(game, 0); // X
+            engine.makeMove(game, 1); // O
+        }
+        engine.makeMove(game, 0); // X → n-th piece in col 0
+
+        assertEquals(GameStatus.FINISHED, game.getStatus());
+        assertEquals(Player.X, game.getWinner());
     }
 
     // Config validation
